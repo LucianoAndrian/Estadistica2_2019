@@ -1,0 +1,3 @@
+-Datos simulados de temperatura mensual para una estacion 'X'
+-Hay 420 datos
+-Los datos se estudiaran para filtrar la parte deterministica de la serie
