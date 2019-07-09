@@ -105,7 +105,7 @@ library(readxl)
 
 datos<-as.data.frame(read_xlsx("datos_pp_ejer_3.xlsx"))
 
-rownames(datos)<-seq(1901:2000)
+rownames(datos)<-c(1901:2000)
 
 y_limit<-max(datos[,1:3],na.rm=T)
 
@@ -116,6 +116,10 @@ mtext(text = "Pilar",col="red",side = 3,adj = 0)
 mtext(text = "Gral. Pico",side = 3,adj = 0.38)
 mtext(text = "Corrientes",col= "blue",side = 3,adj = 1)
 
+#las series no presentan todas el mismo periodo--->no son comparables entre si asi como estan
+#se debe seleccionar el mismo periodo para ello
+
+#b)determinar si cada una de las series presenta tendencia lineal
 #tendencialineal.
 #kendall
 library(Kendall)
@@ -135,40 +139,97 @@ for(i in 2:4){
 }
 
 tau_tab
-#todas presentan tendencia
-#en que periodo? a ojo seria en la 2da mitad de la serie...
+#las tres series tienen una componente desterministica que permite rechazar la hipotesis nula 
+#del test de kendall
+#h0: la serie es al azar
+#h1: la serie no es al azar
+#para ver tendencia, lm y test de fisher
 
-#pruebo las dos mitades
-tau_tab2<-vector()
-for(i in 2:4){
-  mk[[i]]<- MannKendall(datos[1:50,i])
-  N<- length(datos[1:50,i])
-  desvio<- sqrt((4*N+10)/(9*N*(N-1))) #calculo el desvio de Tau seg???n Nota T???cnica 79
-  #tau_crit[i]<-1.96*sqrt((4*N+10)/(9*N*(N-1)))
-  t<-mk[[i]]$tau #extraigo el valor de Tau
-  tau_tab2[i]<-(t/desvio) # este es el valor que tengo que comparar con la Tabla Normal
-}  
-tau_tab2 
-#miro solo Pilar y Corrientes, ya que Gral Pico no tiene valores
-#no presentan tendencia
-#MannKendall en Gral, Pico da tau = 1, 2-sided pvalue =1
-#PILAR TERMINA EN EL 89!!
-tau_tab3<-vector()
-for(i in 2:4){
-  mk[[i]]<- MannKendall(datos[59:89,i])
-  N<- length(datos[59:89,i])
-  desvio<- sqrt((4*N+10)/(9*N*(N-1))) #calculo el desvio de Tau seg???n Nota T???cnica 79
-  #tau_crit[i]<-1.96*sqrt((4*N+10)/(9*N*(N-1)))
-  t<-mk[[i]]$tau #extraigo el valor de Tau
-  tau_tab3[i]<-(t/desvio) # este es el valor que tengo que comparar con la Tabla Normal
-}  
-tau_tab3 
-#solo Gral. Pico presenta tendencia. 
-#solo estoy mirando los ultimos 50 años en comparacion con las otras series en las que tengo el doble
-#en corrientes datos[,4], en los 100 años presenta tendencia
-#al analizar solo la ultima parte de la serie, los ultimos 50 años, las otras estaciones no presentan tendencia 
-#ULTIMA PARTE VER SALTO CON YAMAMOTO
+ajuste_pilar<-lm(datos$Pilar~datos$Año)
+summary(ajuste_pilar) #tendencia significativa en el periodo 1907-1989
 
+ajuste_gral.pico<-lm(datos$`Gral. Pico`~datos$Año)
+summary(ajuste_gral.pico) #tendencia significativa en el periodo 1959 - 2000
+
+ajuste_corrientes<-lm(datos$Corrientes~datos$Año)
+summary(ajuste_corrientes) #tendencia significativa en el periodo 1901 - 1999
+
+#c) para comparar pico con las otras tengo que seleccionar un periodo en comun
+#pico tiene el periodo mas corto desde 1959 hasta 2000
+#pero las demasseries no llegan hasta el año 2000
+#asi que el periodo que voy a tomar va ser 1959 -1989
+
+pilar_c<-datos$Pilar[59:89]
+corrientes_c<-datos$Corrientes[59:89]
+pico_c<-datos$`Gral. Pico`[59:89]
+#la consigna indica que pico presenta un aumento con los años
+#pero en este periodo tambien??
+ajuste_pico_c<-lm(pico_c~seq(1:31))
+summary(ajuste_pico_c) #si, presentan tendencia significativa
+
+#veamos las otras en este mismo periodo
+
+ajuste_pilar_c<-lm(pilar_c~seq(1:31))
+summary(ajuste_pilar_c) #no presentea tendencia significativa en este periodo 
+
+ajuste_corrientes_c<-lm(corrientes_c~seq(1:31))
+summary(ajuste_corrientes_c) #tampoco presenta tendencia significativa en este periodo
+
+#en el periodo 1959-1989 solo general pico presenta tendencia positiva y significativa
+#en el aumento de la precipitacion.
+
+#d)algun cambio significativo en la estacion corrientes 
+#en todo el periodo??---parece que si por la pregunta que sigue
+
+#ya sabemos que la estacion presenta una tendencia significativa en todo su periodo
+#es necesario filtrarla para analizar si hay saltos??---> deberia serlo, ya que en este caso
+#para ver si hay un salto voy husar el test de yamamoto el cual es praticmanete un test de medias
+#entonces para evtar un cambio en la media producto de una tendencia mejor filtrarla 
+#(en este punto de la cursada todvia no habiaos visto el scrip analisis de tendencia)
+
+source("C:/Users/Alumno/Desktop/Estadistica2/Scripts/FUNCIONES.R")
+corrientes_fil<-analisis_tendencia(data.frame(datos$Año,datos$Corrientes))
+
+#sabemos que existio un salto climatico en la pp entre el 79 y el 80
+#miro 5 años antes y despues de esos años con el test de yamamoto buscando el maximo
+#estadistico Y que me indica el salto (recordar que si es mayor a 1 indica un salto climatico)
+#recordar corrientes va desde 1901 hasta 1999
+Y<-vector()
+for(i in 1:10){
+  datosA<-corrientes_fil[1:(74+i)]
+  datosB<-corrientes_fil[(75+i):99]
+  mediaA<-mean(datosA)
+  mediaB<-mean(datosB)
+  cA<-sd(datosA)*1.96*1/sqrt(length(datosA)-1)
+  cB<-sd(datosB)*1.96*1/sqrt(length(datosB)-1)
+  #tcritico 1,96
+  Y[i]<-(mediaB-mediaA)/(cB+cA)
+  rm(datosB)
+}
+Y
+
+#no se observa un salto climatico en ningun momento entre esos años
+#si la pregunta fuera sobre el mismo periodo que en gral pico, que seria 1959:1999
+#no veo bien aplicar el test en este caso ya que solo tengo 42 datos y no va ser muy representativo
+#calular medias con 20 datos, en el mejor de los casos
+#aun asi podes probar que da:
+plot.ts(corrientes_fil[59:99])
+
+Y<-vector()
+for(i in 1:5){
+  datosA<-corrientes_fil[1:78+i]
+  datosB<-corrientes_fil[(79+i):99]
+  mediaA<-mean(datosA)
+  mediaB<-mean(datosB)
+  cA<-sd(datosA)*1.96*1/sqrt(length(datosA)-1)
+  cB<-sd(datosB)*1.96*1/sqrt(length(datosB)-1)
+  #tcritico 1,96
+  Y[i]<-abs(mediaB-mediaA)/(cB+cA)
+  rm(datosB)
+}
+Y
+
+#tampoco presenta saltos
 
 ####EJ 4####
 rm(list=ls())
@@ -180,25 +241,3 @@ plot(datos[,1],datos[,2],type="l") #se puede ver una tendencia diferente en cada
 #periodos  y tampoco antes de 1914 no se puede determinar. Analizar tendencia en este caso 
 #no seria significativo, por lo mencionado antes y por los pocos datos que que se tienen de cada periodo
 #NO SE HAY SUFICIENTES DATOS PARA AFIRMAR UN CAMBIO EN LA CIRCULACION
-serie1<-datos[1:which(datos[,1]==1944),2]
-length(serie1) #31 datos
-serie2<-datos[which(datos[,1]==1977):length(datos[,1]),2]
-length(serie2) #22 datos
-
-library(Kendall)
-
-series<-list(serie1,serie2)
-mk<-list()
-tau_tab<-vector()
-
-for(i in 1:2){
-  mk[[i]]<- MannKendall(series[[i]])
-  N<- length(datos[[i]])
-  desvio<- sqrt((4*N+10)/(9*N*(N-1))) #calculo el desvio de Tau seg???n Nota T???cnica 79
-  t<-mk[[i]]$tau #extraigo el valor de Tau
-  tau_tab[i]<-(t/desvio) # este es el valor que tengo que comparar con la Tabla Normal
-}
-
-tau_tab
-#el test da que existe una tendencia en las dos
-
