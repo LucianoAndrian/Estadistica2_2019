@@ -1,6 +1,0 @@
-Datos horarios simulados de temperatura de una estacion 'X'
-Primer columna son las horas, segunda columna temperatura, tercer columna tiempos
-
-Los datos presentan ciclo diario de 24 hs por ejemplo nos gustaria estudiar las variabilidades asociadas
-a mayores periodos.
-
